@@ -135,6 +135,13 @@ class AssetSoftware(BaseModel, table=True):
     installed_at: datetime = Field(default_factory=datetime.utcnow)
     notes: Optional[str] = None
 
+class PersonSoftware(BaseModel, table=True):
+    """Join table: Software assigned to People (users)"""
+    person_id: UUID = Field(foreign_key="person.id", index=True)
+    software_id: UUID = Field(foreign_key="software.id", index=True)
+    assigned_at: datetime = Field(default_factory=datetime.utcnow)
+    notes: Optional[str] = None
+
 # ============================================================================
 # PEOPLE - Client Users (not system users)
 # ============================================================================

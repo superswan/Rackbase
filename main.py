@@ -24,7 +24,7 @@ from pathlib import Path
 from models import (
     Organization, Site, User, UserOrganization,
     Asset, Network, Software, AssetSoftware,
-    Person, InventoryItem,
+    Person, PersonSoftware, InventoryItem,
     Service, Credential,
     FileAttachment, Documentation,
     CustomFieldDefinition, CustomFieldValue,
@@ -951,6 +951,192 @@ async def delete_software(
     session.delete(software)
     session.commit()
     return {"message": "Software deleted"}
+
+@app.get("/software/{software_id}/details")
+async def get_software_details(
+    software_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Get software with associated assets and people"""
+    software = session.get(Software, software_id)
+    if not software:
+        raise HTTPException(status_code=404, detail="Software not found")
+    
+    # Get associated assets
+    asset_stmt = (
+        select(Asset, AssetSoftware)
+        .join(AssetSoftware, AssetSoftware.asset_id == Asset.id)
+        .where(AssetSoftware.software_id == software_id)
+    )
+    assets = session.exec(asset_stmt).all()
+    
+    # Get associated people
+    person_stmt = (
+        select(Person, PersonSoftware)
+        .join(PersonSoftware, PersonSoftware.person_id == Person.id)
+        .where(PersonSoftware.software_id == software_id)
+    )
+    people = session.exec(person_stmt).all()
+    
+    return {
+        "software": software,
+        "assets": [
+            {
+                "id": str(asset.id),
+                "name": asset.name,
+                "ip_address": asset.ip_address,
+                "installation_path": mapping.installation_path,
+                "installed_version": mapping.installed_version,
+                "installed_at": mapping.installed_at,
+            }
+            for asset, mapping in assets
+        ],
+        "people": [
+            {
+                "id": str(person.id),
+                "first_name": person.first_name,
+                "last_name": person.last_name,
+                "email": person.email,
+                "assigned_at": mapping.assigned_at,
+            }
+            for person, mapping in people
+        ],
+    }
+
+class AssetSoftwareAttach(BaseModel):
+    asset_id: UUID
+    installation_path: Optional[str] = None
+    installed_version: Optional[str] = None
+    notes: Optional[str] = None
+
+@app.post("/software/{software_id}/assets")
+async def attach_asset_to_software(
+    software_id: UUID,
+    data: AssetSoftwareAttach,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Attach an asset to software"""
+    # Verify software exists
+    software = session.get(Software, software_id)
+    if not software:
+        raise HTTPException(status_code=404, detail="Software not found")
+    
+    # Verify asset exists
+    asset = session.get(Asset, data.asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    # Check if already attached
+    existing = session.exec(
+        select(AssetSoftware).where(
+            AssetSoftware.asset_id == data.asset_id,
+            AssetSoftware.software_id == software_id
+        )
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Asset already attached to this software")
+    
+    # Create association
+    assoc = AssetSoftware(
+        asset_id=data.asset_id,
+        software_id=software_id,
+        installation_path=data.installation_path,
+        installed_version=data.installed_version or software.version,
+        notes=data.notes
+    )
+    session.add(assoc)
+    session.commit()
+    return {"message": "Asset attached to software"}
+
+@app.delete("/software/{software_id}/assets/{asset_id}")
+async def detach_asset_from_software(
+    software_id: UUID,
+    asset_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Detach an asset from software"""
+    assoc = session.exec(
+        select(AssetSoftware).where(
+            AssetSoftware.asset_id == asset_id,
+            AssetSoftware.software_id == software_id
+        )
+    ).first()
+    
+    if not assoc:
+        raise HTTPException(status_code=404, detail="Association not found")
+    
+    session.delete(assoc)
+    session.commit()
+    return {"message": "Asset detached from software"}
+
+class PersonSoftwareAttach(BaseModel):
+    person_id: UUID
+    notes: Optional[str] = None
+
+@app.post("/software/{software_id}/people")
+async def attach_person_to_software(
+    software_id: UUID,
+    data: PersonSoftwareAttach,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Attach a person to software"""
+    # Verify software exists
+    software = session.get(Software, software_id)
+    if not software:
+        raise HTTPException(status_code=404, detail="Software not found")
+    
+    # Verify person exists
+    person = session.get(Person, data.person_id)
+    if not person:
+        raise HTTPException(status_code=404, detail="Person not found")
+    
+    # Check if already attached
+    existing = session.exec(
+        select(PersonSoftware).where(
+            PersonSoftware.person_id == data.person_id,
+            PersonSoftware.software_id == software_id
+        )
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Person already attached to this software")
+    
+    # Create association
+    assoc = PersonSoftware(
+        person_id=data.person_id,
+        software_id=software_id,
+        notes=data.notes
+    )
+    session.add(assoc)
+    session.commit()
+    return {"message": "Person attached to software"}
+
+@app.delete("/software/{software_id}/people/{person_id}")
+async def detach_person_from_software(
+    software_id: UUID,
+    person_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
+):
+    """Detach a person from software"""
+    assoc = session.exec(
+        select(PersonSoftware).where(
+            PersonSoftware.person_id == person_id,
+            PersonSoftware.software_id == software_id
+        )
+    ).first()
+    
+    if not assoc:
+        raise HTTPException(status_code=404, detail="Association not found")
+    
+    session.delete(assoc)
+    session.commit()
+    return {"message": "Person detached from software"}
 
 # ============================================================================
 # PEOPLE (Client employees)

@@ -13,8 +13,17 @@ export default function Software() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [viewingSoftware, setViewingSoftware] = useState(null);
+  const [softwareDetails, setSoftwareDetails] = useState(null);
   const [showView, setShowView] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  
+  // For attaching assets/people
+  const [assets, setAssets] = useState([]);
+  const [people, setPeople] = useState([]);
+  const [showAttachAsset, setShowAttachAsset] = useState(false);
+  const [showAttachPerson, setShowAttachPerson] = useState(false);
+  const [selectedAssetId, setSelectedAssetId] = useState('');
+  const [selectedPersonId, setSelectedPersonId] = useState('');
 
   useEffect(() => {
     if (orgId && siteId) {
@@ -36,10 +45,17 @@ export default function Software() {
         selectSite(site);
       }
       
-      const data = await api.getSoftware();
-      setSoftware(data);
+      const [softwareData, assetsData, peopleData] = await Promise.all([
+        api.getSoftware(),
+        api.getAssets({ organization_id: orgId, site_id: siteId }),
+        api.getPeople({ organization_id: orgId, site_id: siteId }),
+      ]);
+      
+      setSoftware(softwareData);
+      setAssets(assetsData);
+      setPeople(peopleData);
     } catch (err) {
-      setError('Failed to load software: ' + err.message);
+      setError('Failed to load data: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -72,9 +88,15 @@ export default function Software() {
     }
   }
 
-  const handleView = (item) => {
-    setViewingSoftware(item);
-    setShowView(true);
+  const handleView = async (item) => {
+    try {
+      setViewingSoftware(item);
+      const details = await api.getSoftwareDetails(item.id);
+      setSoftwareDetails(details);
+      setShowView(true);
+    } catch (err) {
+      setError('Failed to load software details: ' + err.message);
+    }
   };
 
   const handleCopyLicense = (licenseKey, id) => {
@@ -82,6 +104,66 @@ export default function Software() {
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
+
+  async function handleAttachAsset() {
+    if (!selectedAssetId || !viewingSoftware) return;
+    
+    try {
+      await api.attachAssetToSoftware(viewingSoftware.id, {
+        asset_id: selectedAssetId,
+      });
+      setSelectedAssetId('');
+      setShowAttachAsset(false);
+      // Refresh details
+      const details = await api.getSoftwareDetails(viewingSoftware.id);
+      setSoftwareDetails(details);
+    } catch (err) {
+      setError('Failed to attach asset: ' + err.message);
+    }
+  }
+
+  async function handleDetachAsset(assetId) {
+    if (!viewingSoftware) return;
+    
+    try {
+      await api.detachAssetFromSoftware(viewingSoftware.id, assetId);
+      // Refresh details
+      const details = await api.getSoftwareDetails(viewingSoftware.id);
+      setSoftwareDetails(details);
+    } catch (err) {
+      setError('Failed to detach asset: ' + err.message);
+    }
+  }
+
+  async function handleAttachPerson() {
+    if (!selectedPersonId || !viewingSoftware) return;
+    
+    try {
+      await api.attachPersonToSoftware(viewingSoftware.id, {
+        person_id: selectedPersonId,
+      });
+      setSelectedPersonId('');
+      setShowAttachPerson(false);
+      // Refresh details
+      const details = await api.getSoftwareDetails(viewingSoftware.id);
+      setSoftwareDetails(details);
+    } catch (err) {
+      setError('Failed to attach person: ' + err.message);
+    }
+  }
+
+  async function handleDetachPerson(personId) {
+    if (!viewingSoftware) return;
+    
+    try {
+      await api.detachPersonFromSoftware(viewingSoftware.id, personId);
+      // Refresh details
+      const details = await api.getSoftwareDetails(viewingSoftware.id);
+      setSoftwareDetails(details);
+    } catch (err) {
+      setError('Failed to detach person: ' + err.message);
+    }
+  }
 
   const columns = [
     { key: 'name', label: 'Name' },
@@ -257,6 +339,14 @@ export default function Software() {
       : '-',
   }));
 
+  // Filter out already attached assets/people
+  const availableAssets = assets.filter(a => 
+    !softwareDetails?.assets?.some(attached => attached.id === a.id)
+  );
+  const availablePeople = people.filter(p => 
+    !softwareDetails?.people?.some(attached => attached.id === p.id)
+  );
+
   return (
     <Layout requireOrg requireSite>
       <div>
@@ -292,7 +382,7 @@ export default function Software() {
         )}
 
         {/* View Modal */}
-        {showView && viewingSoftware && (
+        {showView && viewingSoftware && softwareDetails && (
           <div style={styles.modal}>
             <div style={styles.modalContent}>
               <h3 style={styles.modalTitle}>{viewingSoftware.name}</h3>
@@ -342,11 +432,190 @@ export default function Software() {
                 </div>
               )}
 
+              {/* Attached Assets Section */}
+              <div style={styles.section}>
+                <div style={styles.sectionHeader}>
+                  <h4 style={styles.sectionTitle}>
+                    <i className="fa-solid fa-server"></i> Installed on Assets
+                    {softwareDetails.assets?.length > 0 && (
+                      <span style={styles.badge}>{softwareDetails.assets.length}</span>
+                    )}
+                  </h4>
+                  <button 
+                    onClick={() => setShowAttachAsset(true)}
+                    style={styles.attachButton}
+                  >
+                    + Attach Asset
+                  </button>
+                </div>
+                
+                {softwareDetails.assets?.length === 0 ? (
+                  <p style={styles.emptyText}>Not installed on any assets</p>
+                ) : (
+                  <div style={styles.list}>
+                    {softwareDetails.assets.map(asset => (
+                      <div key={asset.id} style={styles.listItem}>
+                        <div style={styles.listItemInfo}>
+                          <span style={styles.listItemName}>{asset.name}</span>
+                          <span style={styles.listItemMeta}>{asset.ip_address}</span>
+                          {asset.installed_version && (
+                            <span style={styles.listItemMeta}>v{asset.installed_version}</span>
+                          )}
+                        </div>
+                        <button 
+                          onClick={() => handleDetachAsset(asset.id)}
+                          style={styles.detachButton}
+                          title="Detach asset"
+                        >
+                          <i className="fa-solid fa-unlink"></i>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Assigned People Section */}
+              <div style={styles.section}>
+                <div style={styles.sectionHeader}>
+                  <h4 style={styles.sectionTitle}>
+                    <i className="fa-solid fa-users"></i> Assigned to People
+                    {softwareDetails.people?.length > 0 && (
+                      <span style={styles.badge}>{softwareDetails.people.length}</span>
+                    )}
+                  </h4>
+                  <button 
+                    onClick={() => setShowAttachPerson(true)}
+                    style={styles.attachButton}
+                  >
+                    + Assign Person
+                  </button>
+                </div>
+                
+                {softwareDetails.people?.length === 0 ? (
+                  <p style={styles.emptyText}>Not assigned to any people</p>
+                ) : (
+                  <div style={styles.list}>
+                    {softwareDetails.people.map(person => (
+                      <div key={person.id} style={styles.listItem}>
+                        <div style={styles.listItemInfo}>
+                          <span style={styles.listItemName}>
+                            {person.first_name} {person.last_name}
+                          </span>
+                          <span style={styles.listItemMeta}>{person.email}</span>
+                        </div>
+                        <button 
+                          onClick={() => handleDetachPerson(person.id)}
+                          style={styles.detachButton}
+                          title="Unassign person"
+                        >
+                          <i className="fa-solid fa-user-minus"></i>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div style={styles.modalActions}>
                 <button onClick={() => setShowView(false)} style={styles.closeButton}>
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Attach Asset Modal */}
+        {showAttachAsset && (
+          <div style={styles.modal}>
+            <div style={styles.modalContent}>
+              <h3 style={styles.modalTitle}>Attach Asset</h3>
+              
+              {availableAssets.length === 0 ? (
+                <p style={styles.emptyText}>No available assets to attach</p>
+              ) : (
+                <>
+                  <select
+                    value={selectedAssetId}
+                    onChange={(e) => setSelectedAssetId(e.target.value)}
+                    style={formStyles.input}
+                  >
+                    <option value="">Select an asset...</option>
+                    {availableAssets.map(asset => (
+                      <option key={asset.id} value={asset.id}>
+                        {asset.name} ({asset.ip_address || 'No IP'})
+                      </option>
+                    ))}
+                  </select>
+                  
+                  <div style={styles.modalActions}>
+                    <button 
+                      onClick={handleAttachAsset}
+                      disabled={!selectedAssetId}
+                      style={selectedAssetId ? styles.submitButton : styles.submitButtonDisabled}
+                    >
+                      Attach
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setShowAttachAsset(false);
+                        setSelectedAssetId('');
+                      }}
+                      style={styles.cancelButton}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Attach Person Modal */}
+        {showAttachPerson && (
+          <div style={styles.modal}>
+            <div style={styles.modalContent}>
+              <h3 style={styles.modalTitle}>Assign Person</h3>
+              
+              {availablePeople.length === 0 ? (
+                <p style={styles.emptyText}>No available people to assign</p>
+              ) : (
+                <>
+                  <select
+                    value={selectedPersonId}
+                    onChange={(e) => setSelectedPersonId(e.target.value)}
+                    style={formStyles.input}
+                  >
+                    <option value="">Select a person...</option>
+                    {availablePeople.map(person => (
+                      <option key={person.id} value={person.id}>
+                        {person.first_name} {person.last_name} ({person.email || 'No email'})
+                      </option>
+                    ))}
+                  </select>
+                  
+                  <div style={styles.modalActions}>
+                    <button 
+                      onClick={handleAttachPerson}
+                      disabled={!selectedPersonId}
+                      style={selectedPersonId ? styles.submitButton : styles.submitButtonDisabled}
+                    >
+                      Assign
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setShowAttachPerson(false);
+                        setSelectedPersonId('');
+                      }}
+                      style={styles.cancelButton}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -414,7 +683,7 @@ const styles = {
     padding: '30px',
     borderRadius: '8px',
     width: '100%',
-    maxWidth: '500px',
+    maxWidth: '600px',
     maxHeight: '90vh',
     overflow: 'auto',
   },
@@ -488,15 +757,123 @@ const styles = {
     color: '#4a5568',
     lineHeight: '1.5',
   },
+  section: {
+    marginTop: '24px',
+    paddingTop: '24px',
+    borderTop: '1px solid #e2e8f0',
+  },
+  sectionHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+  },
+  sectionTitle: {
+    margin: 0,
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#2d3748',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  badge: {
+    backgroundColor: '#e2e8f0',
+    color: '#4a5568',
+    padding: '2px 8px',
+    borderRadius: '12px',
+    fontSize: '12px',
+    fontWeight: '500',
+  },
+  attachButton: {
+    backgroundColor: '#48bb78',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '8px 16px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500',
+  },
+  list: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  listItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '12px',
+    backgroundColor: '#f7fafc',
+    borderRadius: '6px',
+    border: '1px solid #e2e8f0',
+  },
+  listItemInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  listItemName: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#2d3748',
+  },
+  listItemMeta: {
+    fontSize: '12px',
+    color: '#718096',
+  },
+  detachButton: {
+    background: 'none',
+    border: 'none',
+    color: '#e53e3e',
+    cursor: 'pointer',
+    padding: '6px',
+    fontSize: '14px',
+  },
+  emptyText: {
+    color: '#718096',
+    fontSize: '14px',
+    fontStyle: 'italic',
+    padding: '12px 0',
+  },
   modalActions: {
     display: 'flex',
     justifyContent: 'flex-end',
+    gap: '12px',
     marginTop: '24px',
   },
   closeButton: {
     backgroundColor: '#e2e8f0',
     color: '#4a5568',
     border: 'none',
+    borderRadius: '6px',
+    padding: '10px 20px',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
+  submitButton: {
+    backgroundColor: '#48bb78',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '10px 20px',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#e2e8f0',
+    color: '#a0aec0',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '10px 20px',
+    cursor: 'not-allowed',
+    fontWeight: '600',
+  },
+  cancelButton: {
+    backgroundColor: '#fff',
+    color: '#4a5568',
+    border: '1px solid #e2e8f0',
     borderRadius: '6px',
     padding: '10px 20px',
     cursor: 'pointer',

@@ -286,6 +286,36 @@ class ApiClient {
     });
   }
 
+  async getSoftwareDetails(id) {
+    return this.request(`/software/${id}/details`);
+  }
+
+  async attachAssetToSoftware(softwareId, data) {
+    return this.request(`/software/${softwareId}/assets`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async detachAssetFromSoftware(softwareId, assetId) {
+    return this.request(`/software/${softwareId}/assets/${assetId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async attachPersonToSoftware(softwareId, data) {
+    return this.request(`/software/${softwareId}/people`, {
+      method: 'POST',
+      body: data,
+    });
+  }
+
+  async detachPersonFromSoftware(softwareId, personId) {
+    return this.request(`/software/${softwareId}/people/${personId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // People - NEW client employees endpoint
   async getPeople(params = {}) {
     const query = new URLSearchParams();
