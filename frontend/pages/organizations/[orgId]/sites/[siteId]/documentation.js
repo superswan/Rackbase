@@ -51,6 +51,7 @@ export default function Documentation() {
   }
 
   async function handleCreate(data) {
+    console.log('Documentation: handleCreate called with:', data);
     try {
       console.log('Creating doc with data:', data);
       const payload = {
@@ -61,12 +62,14 @@ export default function Documentation() {
         site_id: siteId,
       };
       console.log('Payload:', payload);
-      await api.createDocumentation(payload);
+      const result = await api.createDocumentation(payload);
+      console.log('Create result:', result);
       await loadData();
     } catch (err) {
       console.error('Create error:', err);
       const errorMessage = err.message || err.detail || (typeof err === 'object' ? JSON.stringify(err, null, 2) : String(err));
       setError('Failed to create documentation: ' + errorMessage);
+      throw err;
     }
   }
 

@@ -23,6 +23,7 @@ export default function DataTable({
   enableFiltering = true,
   createDefaults = {},
 }) {
+  const [hoveredRow, setHoveredRow] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -131,11 +132,18 @@ export default function DataTable({
     resetPagination();
   };
 
-  const handleCreate = (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
-    onCreate(formData);
-    setFormData({});
-    setShowCreate(false);
+    console.log('DataTable: handleCreate called with formData:', formData);
+    try {
+      await onCreate(formData);
+      console.log('DataTable: onCreate succeeded');
+      setFormData({});
+      setShowCreate(false);
+    } catch (err) {
+      // Error handling is done in parent component
+      console.error('DataTable: Create failed:', err);
+    }
   };
 
   const handleEdit = (e) => {
@@ -282,11 +290,34 @@ export default function DataTable({
                 </td>
               </tr>
             ) : (
-              paginatedData.map(item => {
+              paginatedData.map((item, index) => {
                 const viewUrl = getViewHref(item);
                 const editUrl = getEditHref(item);
+                const isClickable = viewUrl || onView;
+                const isHovered = hoveredRow === item.id;
+                
+                const handleRowClick = (e) => {
+                  // Don't trigger if clicking on a button or link
+                  if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button') || e.target.closest('a')) {
+                    return;
+                  }
+                  if (onView) {
+                    onView(item);
+                  }
+                };
+                
                 return (
-                  <tr key={item.id} style={styles.tr}>
+                  <tr 
+                    key={item.id} 
+                    style={{
+                      ...styles.tr,
+                      ...(isHovered ? styles.trHover : {}),
+                      cursor: isClickable ? 'pointer' : 'default',
+                    }}
+                    onMouseEnter={() => setHoveredRow(item.id)}
+                    onMouseLeave={() => setHoveredRow(null)}
+                    onClick={handleRowClick}
+                  >
                     {columns.map(col => (
                       <td key={col.key} style={viewUrl ? styles.tdClickable : styles.td}>
                         {viewUrl ? (
@@ -300,12 +331,21 @@ export default function DataTable({
                     ))}
                     {!hasCustomActions && (
                       <td style={styles.td}>
-                        {enableView && viewUrl && (
-                          <Link href={viewUrl}>
-                            <button style={styles.viewButton}>
+                        {enableView && (
+                          onView ? (
+                            <button 
+                              onClick={() => onView(item)} 
+                              style={styles.viewButton}
+                            >
                               View
                             </button>
-                          </Link>
+                          ) : viewUrl ? (
+                            <Link href={viewUrl}>
+                              <button style={styles.viewButton}>
+                                View
+                              </button>
+                            </Link>
+                          ) : null
                         )}
                         {editUrl ? (
                           <Link href={editUrl}>
@@ -423,10 +463,13 @@ export default function DataTable({
         <div style={styles.modal}>
           <div style={styles.modalContent}>
             <h3>Create {title}</h3>
-            <form onSubmit={handleCreate}>
+            <form onSubmit={(e) => { console.log('Form submit triggered'); handleCreate(e); }}>
               {renderCreateForm()}
               <div style={styles.formActions}>
-                <button type="submit" style={styles.submitButton}>Create</button>
+                <button type="button" style={styles.submitButton} onClick={() => {
+                  console.log('Button clicked, calling handleCreate manually');
+                  handleCreate({ preventDefault: () => {} });
+                }}>Create</button>
                 <button type="button" onClick={() => setShowCreate(false)} style={styles.cancelButton}>Cancel</button>
               </div>
             </form>
@@ -570,6 +613,9 @@ const styles = {
   tr: {
     borderBottom: '1px solid #e2e8f0',
     transition: 'background-color 0.15s',
+  },
+  trHover: {
+    backgroundColor: '#f7fafc',
   },
   td: {
     padding: '12px 16px',
