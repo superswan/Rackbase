@@ -17,7 +17,21 @@ A self-hosted IT inventory and documentation system for tracking assets, network
 - Python 3.8+
 - Node.js 18+
 
-### Install
+### Automated Setup
+
+```bash
+# macOS/Linux
+./setup.sh
+```
+
+```powershell
+# Windows (PowerShell)
+./setup.ps1
+```
+
+The setup script installs Python and Node dependencies, creates `.env` from `.env.example` if missing, and optionally configures LAN access.
+
+### Manual Install
 
 ```bash
 # Backend
@@ -27,6 +41,18 @@ pip install -r requirements.txt
 cd frontend
 npm install
 ```
+
+### Manual Environment Setup
+
+```bash
+cp .env.example .env
+```
+
+For LAN access, update these keys in `.env`:
+- `BACKEND_HOST=0.0.0.0`
+- `FRONTEND_HOST=0.0.0.0`
+- `NEXT_PUBLIC_API_URL=http://YOUR_LAN_IP:8088`
+- `CORS_ORIGINS=http://localhost:3036,http://127.0.0.1:3036,http://YOUR_LAN_IP:3036`
 
 ### Run
 
