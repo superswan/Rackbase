@@ -42,6 +42,14 @@ cd frontend
 npm install
 ```
 
+On Debian/Ubuntu, use a virtual environment for Python packages:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+```
+
 ### Manual Environment Setup
 
 ```bash

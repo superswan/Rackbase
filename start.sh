@@ -24,11 +24,18 @@ FRONTEND_PORT="${FRONTEND_PORT:-3036}"
 FRONTEND_HOST="${FRONTEND_HOST:-0.0.0.0}"
 
 # Checks
-command -v python3 >/dev/null || { echo "ERROR: python3 not found"; exit 1; }
+PYTHON_BIN="python3"
+if [[ -x .venv/bin/python ]]; then
+  PYTHON_BIN=".venv/bin/python"
+fi
+
+if [[ ! -x "${PYTHON_BIN}" ]]; then
+  command -v python3 >/dev/null || { echo "ERROR: python3 not found"; exit 1; }
+fi
 command -v node >/dev/null    || { echo "ERROR: node not found"; exit 1; }
 command -v npm >/dev/null     || { echo "ERROR: npm not found"; exit 1; }
 
-echo "Python:  $(python3 --version)"
+echo "Python:  $(${PYTHON_BIN} --version)"
 echo "Node:    $(node --version)"
 echo "npm:     $(npm --version)"
 echo ""
@@ -55,7 +62,7 @@ shutdown() {
 trap shutdown INT TERM EXIT
 
 echo "Starting Backend Server..."
-python3 -m uvicorn main:app --reload --port "${BACKEND_PORT}" --host "${BACKEND_HOST}" \
+"${PYTHON_BIN}" -m uvicorn main:app --reload --port "${BACKEND_PORT}" --host "${BACKEND_HOST}" \
   >"$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
 

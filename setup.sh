@@ -119,7 +119,28 @@ fi
 
 echo ""
 echo "Installing backend dependencies..."
-"$PYTHON_BIN" -m pip install -r requirements.txt
+if [[ -d .venv ]]; then
+  echo "Using existing .venv"
+  VENV_PYTHON=".venv/bin/python"
+else
+  if "$PYTHON_BIN" -m pip --version >/dev/null 2>&1; then
+    if "$PYTHON_BIN" -m pip install -r requirements.txt >/dev/null 2>&1; then
+      echo "Installed backend dependencies system-wide"
+      VENV_PYTHON=""
+    else
+      "$PYTHON_BIN" -m venv .venv
+      VENV_PYTHON=".venv/bin/python"
+    fi
+  else
+    "$PYTHON_BIN" -m venv .venv
+    VENV_PYTHON=".venv/bin/python"
+  fi
+fi
+
+if [[ -n "${VENV_PYTHON:-}" ]]; then
+  "${VENV_PYTHON}" -m pip install --upgrade pip
+  "${VENV_PYTHON}" -m pip install -r requirements.txt
+fi
 
 echo ""
 echo "Installing frontend dependencies..."
