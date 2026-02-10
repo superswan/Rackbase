@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Layout from '../../../../../components/Layout';
 import DataTable from '../../../../../components/DataTable';
 import { api } from '../../../../../lib/api';
+import { copyToClipboard } from '../../../../../lib/clipboard';
 import { useApp } from '../../../../../context/AppContext';
 
 // Default ports for protocols
@@ -90,13 +91,13 @@ export default function Services() {
     }
   }
 
-  const copyToClipboard = async (text, id) => {
+  const handleCopyToClipboard = async (text, id) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyToClipboard(text);
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      setError('Clipboard copy failed. Please copy the URL manually.');
     }
   };
 
@@ -127,7 +128,7 @@ export default function Services() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                copyToClipboard(value, row.id);
+                handleCopyToClipboard(value, row.id);
               }}
               style={styles.copyButton}
               title="Copy URL to clipboard"

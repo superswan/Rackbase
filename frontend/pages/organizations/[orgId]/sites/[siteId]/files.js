@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Layout from '../../../../../components/Layout';
 import DataTable from '../../../../../components/DataTable';
 import { api, API_URL } from '../../../../../lib/api';
+import { copyToClipboard } from '../../../../../lib/clipboard';
 import { useApp } from '../../../../../context/AppContext';
 
 export default function Files() {
@@ -133,11 +134,14 @@ export default function Files() {
     }
   }
 
-  function handleCopyLink(url) {
-    if (url) {
-      navigator.clipboard.writeText(url);
+  async function handleCopyLink(url) {
+    if (!url) return;
+    try {
+      await copyToClipboard(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      setError('Clipboard copy failed. Please copy the link manually.');
     }
   }
 

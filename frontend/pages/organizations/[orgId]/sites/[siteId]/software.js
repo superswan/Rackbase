@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Layout from '../../../../../components/Layout';
 import DataTable from '../../../../../components/DataTable';
 import { api } from '../../../../../lib/api';
+import { copyToClipboard } from '../../../../../lib/clipboard';
 import { useApp } from '../../../../../context/AppContext';
 
 export default function Software() {
@@ -99,10 +100,14 @@ export default function Software() {
     }
   };
 
-  const handleCopyLicense = (licenseKey, id) => {
-    navigator.clipboard.writeText(licenseKey);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleCopyLicense = async (licenseKey, id) => {
+    try {
+      await copyToClipboard(licenseKey);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      setError('Clipboard copy failed. Please copy the license key manually.');
+    }
   };
 
   async function handleAttachAsset() {

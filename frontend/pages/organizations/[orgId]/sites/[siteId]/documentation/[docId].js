@@ -6,6 +6,7 @@ import MarkdownEditorSimple from '../../../../../../components/MarkdownEditorSim
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
 import { api } from '../../../../../../lib/api';
+import { copyToClipboard } from '../../../../../../lib/clipboard';
 import { useApp } from '../../../../../../context/AppContext';
 
 export default function DocumentView() {
@@ -75,21 +76,24 @@ export default function DocumentView() {
   }, [doc, isEditing]);
 
   // Copy code to clipboard
-  const handleCopyCode = (e) => {
-    const codeId = e.target.getAttribute('data-code-id');
+  const handleCopyCode = async (e) => {
+    const button = e.currentTarget || e.target;
+    const codeId = button.getAttribute('data-code-id');
     const codeElement = document.getElementById(`code-${codeId}`);
-    if (codeElement) {
-      const code = codeElement.textContent;
-      navigator.clipboard.writeText(code).then(() => {
-        // Show feedback
-        const originalText = e.target.innerHTML;
-        e.target.innerHTML = '<i className="fa-solid fa-check"></i> Copied!';
-        e.target.style.backgroundColor = '#48bb78';
-        setTimeout(() => {
-          e.target.innerHTML = originalText;
-          e.target.style.backgroundColor = '#4a5568';
-        }, 2000);
-      });
+    if (!codeElement) return;
+
+    const code = codeElement.textContent;
+    try {
+      await copyToClipboard(code);
+      const originalText = button.innerHTML;
+      button.innerHTML = '<i className="fa-solid fa-check"></i> Copied!';
+      button.style.backgroundColor = '#48bb78';
+      setTimeout(() => {
+        button.innerHTML = originalText;
+        button.style.backgroundColor = '#4a5568';
+      }, 2000);
+    } catch (err) {
+      setError('Clipboard copy failed. Please copy the code manually.');
     }
   };
 
