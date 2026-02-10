@@ -118,6 +118,8 @@ class Network(BaseModel, table=True):
 
 class Software(BaseModel, table=True):
     """Software definitions - NOT installations"""
+    organization_id: Optional[UUID] = Field(default=None, foreign_key="organization.id", index=True)
+    site_id: Optional[UUID] = Field(default=None, foreign_key="site.id", index=True)
     name: str = Field(index=True)
     vendor: Optional[str] = None
     version: Optional[str] = None

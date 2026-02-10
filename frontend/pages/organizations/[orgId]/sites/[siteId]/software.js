@@ -47,7 +47,7 @@ export default function Software() {
       }
       
       const [softwareData, assetsData, peopleData] = await Promise.all([
-        api.getSoftware(),
+        api.getSoftware({ organization_id: orgId, site_id: siteId }),
         api.getAssets({ organization_id: orgId, site_id: siteId }),
         api.getPeople({ organization_id: orgId, site_id: siteId }),
       ]);
@@ -64,7 +64,11 @@ export default function Software() {
 
   async function handleCreate(data) {
     try {
-      await api.createSoftware(data);
+      await api.createSoftware({
+        ...data,
+        organization_id: orgId,
+        site_id: siteId,
+      });
       await loadData();
     } catch (err) {
       setError('Failed to create software: ' + err.message);

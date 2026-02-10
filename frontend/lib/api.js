@@ -258,8 +258,10 @@ class ApiClient {
   }
 
   // Software - NEW catalog endpoint
-  async getSoftware() {
-    return this.request('/software');
+  async getSoftware(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    const endpoint = query ? `/software?${query}` : '/software';
+    return this.request(endpoint);
   }
 
   async getSoftwareItem(id) {

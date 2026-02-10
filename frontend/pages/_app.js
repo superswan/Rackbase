@@ -1,5 +1,73 @@
 import { AppProvider } from '../context/AppContext';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
+import { useApp } from '../context/AppContext';
+
+function getRouteTitleConfig(pathname) {
+  const titles = {
+    '/login': { label: 'Login' },
+    '/settings': { label: 'Settings' },
+    '/organizations': { label: 'Organizations' },
+    '/organizations/[orgId]/sites': { label: 'Sites', includeOrg: true },
+    '/organizations/[orgId]/sites/[siteId]/dashboard': { label: 'Dashboard', includeOrg: true, includeSite: true },
+    '/organizations/[orgId]/sites/[siteId]/assets': { label: 'Assets', includeOrg: true, includeSite: true },
+    '/organizations/[orgId]/sites/[siteId]/assets/[assetId]': { label: 'Asset', includeOrg: true, includeSite: true },
+    '/organizations/[orgId]/sites/[siteId]/networks': { label: 'Networks', includeOrg: true, includeSite: true },
+    '/organizations/[orgId]/sites/[siteId]/services': { label: 'Services', includeOrg: true, includeSite: true },
+    '/organizations/[orgId]/sites/[siteId]/credentials': { label: 'Credentials', includeOrg: true, includeSite: true },
+    '/organizations/[orgId]/sites/[siteId]/documentation': { label: 'Documentation', includeOrg: true, includeSite: true },
+    '/organizations/[orgId]/sites/[siteId]/documentation/[docId]': { label: 'Document', includeOrg: true, includeSite: true },
+    '/organizations/[orgId]/sites/[siteId]/files': { label: 'Files', includeOrg: true, includeSite: true },
+    '/organizations/[orgId]/sites/[siteId]/inventory': { label: 'Inventory', includeOrg: true, includeSite: true },
+    '/organizations/[orgId]/sites/[siteId]/people': { label: 'People', includeOrg: true, includeSite: true },
+    '/organizations/[orgId]/sites/[siteId]/software': { label: 'Software', includeOrg: true, includeSite: true },
+    '/shared/doc/[token]': { label: 'Shared Document' },
+    '/shared/file/[token]': { label: 'Shared File' },
+    '/': { label: 'Home' },
+  };
+
+  return titles[pathname] || { label: 'Rackbase' };
+}
+
+function buildTitle({ label, includeOrg, includeSite }, orgName, siteName) {
+  const base = label === 'Rackbase' ? 'Rackbase' : `Rackbase - ${label}`;
+  let suffix = '';
+
+  if (includeSite && siteName) {
+    suffix = orgName ? `${orgName} / ${siteName}` : siteName;
+  } else if (includeOrg && orgName) {
+    suffix = orgName;
+  }
+
+  return suffix ? `${base} - ${suffix}` : base;
+}
+
+function TitleManager({ Component }) {
+  const router = useRouter();
+  const { selectedOrg, selectedSite } = useApp();
+  const config = getRouteTitleConfig(router.pathname);
+  let titleConfig = config;
+
+  if (Component.title) {
+    if (typeof Component.title === 'string') {
+      titleConfig = {
+        label: Component.title,
+        includeOrg: config.includeOrg,
+        includeSite: config.includeSite,
+      };
+    } else if (typeof Component.title === 'object') {
+      titleConfig = Component.title;
+    }
+  }
+
+  const title = buildTitle(titleConfig, selectedOrg?.name, selectedSite?.name);
+
+  return (
+    <Head>
+      <title>{title}</title>
+    </Head>
+  );
+}
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -94,6 +162,7 @@ export default function MyApp({ Component, pageProps }) {
         `}</style>
       </Head>
       <AppProvider>
+        <TitleManager Component={Component} />
         <Component {...pageProps} />
       </AppProvider>
     </>

@@ -11,7 +11,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Query, UploadFile, 
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select, SQLModel, col
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, or_, text
 from typing import List, Optional
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
@@ -74,6 +74,29 @@ app.add_middleware(
 )
 
 SQLModel.metadata.create_all(engine)
+
+def ensure_software_scope_columns():
+    if "sqlite" not in str(engine.url):
+        return
+
+    with engine.begin() as connection:
+        columns = connection.execute(text("PRAGMA table_info(software)")).fetchall()
+        existing = {column[1] for column in columns}
+        added = False
+
+        if "organization_id" not in existing:
+            connection.execute(text("ALTER TABLE software ADD COLUMN organization_id VARCHAR"))
+            added = True
+
+        if "site_id" not in existing:
+            connection.execute(text("ALTER TABLE software ADD COLUMN site_id VARCHAR"))
+            added = True
+
+        if added:
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_software_organization_id ON software (organization_id)"))
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_software_site_id ON software (site_id)"))
+
+ensure_software_scope_columns()
 
 # ============================================================================
 # REQUEST MODELS
@@ -181,6 +204,8 @@ class NetworkUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 class SoftwareCreate(BaseModel):
+    organization_id: UUID
+    site_id: UUID
     name: str
     vendor: Optional[str] = None
     version: Optional[str] = None
@@ -887,12 +912,19 @@ async def delete_asset_network_mapping(
 
 @app.get("/software", response_model=List[Software])
 async def list_software(
+    organization_id: UUID,
+    site_id: UUID,
     skip: int = 0,
     limit: int = 100,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    statement = select(Software).where(Software.is_active == True).offset(skip).limit(limit)
+    statement = select(Software).where(
+        Software.is_active == True,
+        Software.organization_id == organization_id,
+        Software.site_id == site_id,
+    )
+    statement = statement.offset(skip).limit(limit)
     return session.exec(statement).all()
 
 @app.post("/software", response_model=Software)
@@ -901,6 +933,12 @@ async def create_software(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
+    site = session.get(Site, data.site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    if site.organization_id != data.organization_id:
+        raise HTTPException(status_code=400, detail="Site does not belong to the organization")
+
     software = Software(**data.dict())
     session.add(software)
     session.commit()
@@ -2860,8 +2898,13 @@ async def get_site_stats(
         people_stmt = people_stmt.where(Person.site_id == site_id)
     people_count = len(session.exec(people_stmt).all())
     
-    # Software (global)
-    software_count = len(session.exec(select(Software).where(Software.is_active == True)).all())
+    # Software
+    software_stmt = select(Software).where(Software.is_active == True)
+    if organization_id:
+        software_stmt = software_stmt.where(Software.organization_id == organization_id)
+    if site_id:
+        software_stmt = software_stmt.where(Software.site_id == site_id)
+    software_count = len(session.exec(software_stmt).all())
     
     return {
         "assets": assets_count,
