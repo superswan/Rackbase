@@ -109,6 +109,11 @@ export default function Layout({ children, requireOrg = false, requireSite = fal
                          router.pathname.includes('/credentials') ||
                          router.pathname.includes('/services');
 
+  const orgNavHref = hasSelectedOrg()
+    ? `/organizations/${selectedOrg.id}/dashboard`
+    : '/organizations';
+  const orgNavLabel = hasSelectedOrg() ? 'Organization' : 'Organizations';
+
   const sidebarWidth = sidebarCollapsed ? '60px' : '280px';
 
   return (
@@ -177,9 +182,9 @@ export default function Layout({ children, requireOrg = false, requireSite = fal
 
         {/* Navigation */}
         <nav style={styles.nav}>
-          {/* Always show Organizations link */}
-          <Link href="/organizations" style={getLinkStyle(router, '/organizations', isMobile || sidebarCollapsed)} onClick={closeMobileMenu}>
-            {isMobile || sidebarCollapsed ? <i className="fa-solid fa-building" style={styles.navIcon}></i> : 'Organizations'}
+          {/* Always show Organization link */}
+          <Link href={orgNavHref} style={getLinkStyle(router, orgNavHref, isMobile || sidebarCollapsed)} onClick={closeMobileMenu}>
+            {isMobile || sidebarCollapsed ? <i className="fa-solid fa-building" style={styles.navIcon}></i> : orgNavLabel}
           </Link>
           
           {/* Show Site Selection link if org selected but no site */}
@@ -368,6 +373,7 @@ function getPageTitle(router) {
   const path = router.pathname;
   
   // Dynamic route titles
+  if (path === '/organizations/[orgId]/dashboard') return 'Organization Dashboard';
   if (path.includes('/dashboard')) return 'Dashboard';
   if (path.includes('/assets')) return 'Assets';
   if (path.includes('/networks')) return 'Networks';

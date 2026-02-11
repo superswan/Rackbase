@@ -8,6 +8,7 @@ function getRouteTitleConfig(pathname) {
     '/login': { label: 'Login' },
     '/settings': { label: 'Settings' },
     '/organizations': { label: 'Organizations' },
+    '/organizations/[orgId]/dashboard': { label: 'Organization Dashboard', includeOrg: true },
     '/organizations/[orgId]/sites': { label: 'Sites', includeOrg: true },
     '/organizations/[orgId]/sites/[siteId]/dashboard': { label: 'Dashboard', includeOrg: true, includeSite: true },
     '/organizations/[orgId]/sites/[siteId]/assets': { label: 'Assets', includeOrg: true, includeSite: true },

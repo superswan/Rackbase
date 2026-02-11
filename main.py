@@ -2701,8 +2701,8 @@ async def global_search(
     asset_stmt = select(Asset).distinct().where(
         Asset.is_active == True,
         or_(
-            Asset.name.like(search_term),
-            Asset.ip_address.like(search_term)
+            col(Asset.name).like(search_term),
+            col(Asset.ip_address).like(search_term)
         )
     )
     
@@ -2726,15 +2726,15 @@ async def global_search(
     # Search Services (by name, port, or protocol) - link to asset with services tab
     # Only include services where both the service AND the asset are active
     service_stmt = (
-        select(Service, Asset.name.label('asset_name'))
+        select(Service, col(Asset.name).label('asset_name'))
         .join(Asset, Service.asset_id == Asset.id)
         .distinct()
         .where(
             Service.is_active == True,
             Asset.is_active == True,
             or_(
-                Service.name.like(search_term),
-                Service.protocol.like(search_term)
+                col(Service.name).like(search_term),
+                col(Service.protocol).like(search_term)
             )
         )
     )
@@ -2761,7 +2761,7 @@ async def global_search(
     # Search Files (by name) - only active files
     file_stmt = select(FileAttachment).distinct().where(
         FileAttachment.is_active == True,
-        FileAttachment.name.like(search_term)
+        col(FileAttachment.name).like(search_term)
     )
     if organization_id:
         file_stmt = file_stmt.where(FileAttachment.organization_id == organization_id)
@@ -2783,9 +2783,9 @@ async def global_search(
     person_stmt = select(Person).distinct().where(
         Person.is_active == True,
         or_(
-            Person.first_name.like(search_term),
-            Person.last_name.like(search_term),
-            Person.email.like(search_term)
+            col(Person.first_name).like(search_term),
+            col(Person.last_name).like(search_term),
+            col(Person.email).like(search_term)
         )
     )
     if organization_id:
@@ -2808,8 +2808,8 @@ async def global_search(
     doc_stmt = select(Documentation).distinct().where(
         Documentation.is_active == True,
         or_(
-            Documentation.title.like(search_term),
-            Documentation.description.like(search_term)
+            col(Documentation.title).like(search_term),
+            col(Documentation.description).like(search_term)
         )
     )
     if organization_id:
@@ -2849,6 +2849,15 @@ async def get_site_stats(
     current_user: User = Depends(get_current_user)
 ):
     """Get accurate counts for dashboard"""
+
+    active_site_ids = None
+    if organization_id and not site_id:
+        active_site_ids = session.exec(
+            select(Site.id).where(
+                Site.organization_id == organization_id,
+                Site.is_active == True,
+            )
+        ).all()
     
     # Assets
     assets_stmt = select(Asset).where(Asset.is_active == True)
@@ -2856,6 +2865,8 @@ async def get_site_stats(
         assets_stmt = assets_stmt.where(Asset.organization_id == organization_id)
     if site_id:
         assets_stmt = assets_stmt.where(Asset.site_id == site_id)
+    elif active_site_ids is not None:
+        assets_stmt = assets_stmt.where(col(Asset.site_id).in_(active_site_ids))
     assets_count = len(session.exec(assets_stmt).all())
     
     # Networks
@@ -2864,6 +2875,8 @@ async def get_site_stats(
         networks_stmt = networks_stmt.where(Network.organization_id == organization_id)
     if site_id:
         networks_stmt = networks_stmt.where(Network.site_id == site_id)
+    elif active_site_ids is not None:
+        networks_stmt = networks_stmt.where(col(Network.site_id).in_(active_site_ids))
     networks_count = len(session.exec(networks_stmt).all())
     
     # Services
@@ -2872,6 +2885,8 @@ async def get_site_stats(
         services_stmt = services_stmt.where(Service.organization_id == organization_id)
     if site_id:
         services_stmt = services_stmt.where(Service.site_id == site_id)
+    elif active_site_ids is not None:
+        services_stmt = services_stmt.where(col(Service.site_id).in_(active_site_ids))
     services_count = len(session.exec(services_stmt).all())
     
     # Credentials
@@ -2880,6 +2895,8 @@ async def get_site_stats(
         credentials_stmt = credentials_stmt.where(Credential.organization_id == organization_id)
     if site_id:
         credentials_stmt = credentials_stmt.where(Credential.site_id == site_id)
+    elif active_site_ids is not None:
+        credentials_stmt = credentials_stmt.where(col(Credential.site_id).in_(active_site_ids))
     credentials_count = len(session.exec(credentials_stmt).all())
     
     # Inventory
@@ -2888,6 +2905,8 @@ async def get_site_stats(
         inventory_stmt = inventory_stmt.where(InventoryItem.organization_id == organization_id)
     if site_id:
         inventory_stmt = inventory_stmt.where(InventoryItem.site_id == site_id)
+    elif active_site_ids is not None:
+        inventory_stmt = inventory_stmt.where(col(InventoryItem.site_id).in_(active_site_ids))
     inventory_count = len(session.exec(inventory_stmt).all())
     
     # People
@@ -2896,6 +2915,8 @@ async def get_site_stats(
         people_stmt = people_stmt.where(Person.organization_id == organization_id)
     if site_id:
         people_stmt = people_stmt.where(Person.site_id == site_id)
+    elif active_site_ids is not None:
+        people_stmt = people_stmt.where(col(Person.site_id).in_(active_site_ids))
     people_count = len(session.exec(people_stmt).all())
     
     # Software
@@ -2904,6 +2925,8 @@ async def get_site_stats(
         software_stmt = software_stmt.where(Software.organization_id == organization_id)
     if site_id:
         software_stmt = software_stmt.where(Software.site_id == site_id)
+    elif active_site_ids is not None:
+        software_stmt = software_stmt.where(col(Software.site_id).in_(active_site_ids))
     software_count = len(session.exec(software_stmt).all())
     
     return {

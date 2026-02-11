@@ -1,5 +1,5 @@
 export async function copyToClipboard(text) {
-  if (!text) return false;
+  if (text === undefined || text === null) return false;
 
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);

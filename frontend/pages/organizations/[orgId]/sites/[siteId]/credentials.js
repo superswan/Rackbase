@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Layout from '../../../../../components/Layout';
 import DataTable from '../../../../../components/DataTable';
 import { api } from '../../../../../lib/api';
+import { copyToClipboard } from '../../../../../lib/clipboard';
 import { useApp } from '../../../../../context/AppContext';
 
 export default function Credentials() {
@@ -17,6 +18,7 @@ export default function Credentials() {
   const [viewingCredential, setViewingCredential] = useState(null);
   const [showView, setShowView] = useState(false);
   const [showPassword, setShowPassword] = useState({});
+  const [copiedField, setCopiedField] = useState(null);
 
   useEffect(() => {
     if (orgId && siteId) {
@@ -92,11 +94,24 @@ export default function Credentials() {
     try {
       const data = await api.getCredential(credential.id);
       setViewingCredential(data);
+      setCopiedField(null);
       setShowView(true);
     } catch (err) {
       setError('Failed to load credential details: ' + err.message);
     }
   }
+
+  const handleCopyValue = async (value, field) => {
+    if (!value) return;
+    try {
+      await copyToClipboard(value);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      setError('Clipboard copy failed. Please copy manually.');
+    }
+  };
+
 
   const columns = [
     { key: 'name', label: 'Name' },
@@ -434,6 +449,8 @@ export default function Credentials() {
             <DataTable
               columns={columns}
               data={displayData}
+              onView={handleView}
+              enableView
               onCreate={handleCreate}
               onEdit={handleEdit}
               onDelete={handleDelete}
@@ -473,7 +490,27 @@ export default function Credentials() {
               </div>
               <div style={formStyles.formGroup}>
                 <label style={formStyles.label}>Username</label>
-                <input type="text" value={viewingCredential.username || '-'} style={formStyles.input} readOnly />
+                <div style={styles.copyRow}>
+                  <input
+                    type="text"
+                    value={viewingCredential.username || '-'}
+                    style={{ ...formStyles.input, flex: 1, width: 'auto', minWidth: 0 }}
+                    readOnly
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleCopyValue(viewingCredential.username, 'username')}
+                    style={styles.copyButton}
+                    title="Copy username"
+                    disabled={!viewingCredential.username}
+                  >
+                    {copiedField === 'username' ? (
+                      <><i className="fa-solid fa-check"></i> Copied</>
+                    ) : (
+                      <><i className="fa-regular fa-copy"></i> Copy</>
+                    )}
+                  </button>
+                </div>
               </div>
               <div style={formStyles.formGroup}>
                 <label style={formStyles.label}>
@@ -496,11 +533,31 @@ export default function Credentials() {
                     <i className={showPassword[`view_${viewingCredential.id}`] ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'}></i>
                   </button>
                 </div>
+                <div style={styles.copyActions}>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyValue(viewingCredential.value, 'secret')}
+                    style={styles.copyButton}
+                    title="Copy secret"
+                    disabled={!viewingCredential.value}
+                  >
+                    {copiedField === 'secret' ? (
+                      <><i className="fa-solid fa-check"></i> Copied</>
+                    ) : (
+                      <><i className="fa-regular fa-copy"></i> Copy Secret</>
+                    )}
+                  </button>
+                </div>
               </div>
               {viewingCredential.asset_id && (
                 <div style={formStyles.formGroup}>
                   <label style={formStyles.label}>Asset</label>
-                  <input type="text" value={getAssetName(viewingCredential.asset_id)} style={formStyles.input} readOnly />
+                  <input
+                    type="text"
+                    value={getAssetName(viewingCredential.asset_id)}
+                    style={{ ...formStyles.input, ...styles.readOnlyField }}
+                    disabled
+                  />
                 </div>
               )}
               {viewingCredential.service_id && (
@@ -664,6 +721,33 @@ const styles = {
     borderRadius: '6px',
     cursor: 'pointer',
     fontWeight: '600',
+  },
+  copyRow: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center',
+  },
+  copyActions: {
+    display: 'flex',
+    gap: '8px',
+    marginTop: '8px',
+    flexWrap: 'wrap',
+  },
+  copyButton: {
+    backgroundColor: '#4299e1',
+    color: '#fff',
+    padding: '8px 12px',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '600',
+    whiteSpace: 'nowrap',
+  },
+  readOnlyField: {
+    backgroundColor: '#edf2f7',
+    color: '#4a5568',
+    cursor: 'not-allowed',
   },
   togglePassword: {
     position: 'absolute',

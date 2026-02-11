@@ -54,8 +54,8 @@ export default function OrganizationSelector() {
 
   function handleSelectOrg(org) {
     selectOrganization(org);
-    // Navigate to site selection for this organization
-    router.push(`/organizations/${org.id}/sites`);
+    // Navigate to the organization dashboard
+    router.push(`/organizations/${org.id}/dashboard`);
   }
 
   function handleEditClick(e, org) {

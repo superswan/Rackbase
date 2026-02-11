@@ -12,7 +12,7 @@ export default function Home() {
       router.push('/organizations');
     } else if (!hasSelectedSite()) {
       // Organization selected but no site, redirect to site selector
-      router.push(`/organizations/${selectedOrg.id}/sites`);
+      router.push(`/organizations/${selectedOrg.id}/dashboard`);
     } else {
       // Both selected, redirect to dashboard
       router.push(`/organizations/${selectedOrg.id}/sites/${selectedSite.id}/dashboard`);

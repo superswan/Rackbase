@@ -49,7 +49,6 @@ export default function Settings() {
     description: '',
     defaultContactEmail: '',
     defaultContactPhone: '',
-    defaultSitePreferences: '',
   });
 
   // Service Protocols State
@@ -158,7 +157,6 @@ export default function Settings() {
         description: data.description || '',
         defaultContactEmail: data.contact_email || '',
         defaultContactPhone: data.contact_phone || '',
-        defaultSitePreferences: data.default_site_preferences || '',
       });
     } catch (err) {
       console.error('Failed to load org settings:', err);
@@ -338,7 +336,6 @@ export default function Settings() {
         description: orgSettings.description,
         contact_email: orgSettings.defaultContactEmail,
         contact_phone: orgSettings.defaultContactPhone,
-        default_site_preferences: orgSettings.defaultSitePreferences,
       });
       showMessage('Organization settings saved');
     } catch (err) {
@@ -726,6 +723,7 @@ export default function Settings() {
                   <option value="documentation">Documentation</option>
                 </select>
               </div>
+
               
               <button style={styles.saveButton} onClick={handleSaveUiPreferences}>
                 Save UI Preferences
@@ -778,17 +776,6 @@ export default function Settings() {
                   value={orgSettings.defaultContactPhone}
                   onChange={(e) => setOrgSettings({...orgSettings, defaultContactPhone: e.target.value})}
                   style={styles.input}
-                />
-              </div>
-              
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Default Site Preferences</label>
-                <textarea
-                  value={orgSettings.defaultSitePreferences}
-                  onChange={(e) => setOrgSettings({...orgSettings, defaultSitePreferences: e.target.value})}
-                  style={styles.textarea}
-                  rows={2}
-                  placeholder="Default settings for new sites..."
                 />
               </div>
               
